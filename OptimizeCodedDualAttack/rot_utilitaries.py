@@ -121,7 +121,8 @@ def lambda_2(t, nfft, alpha, dlsc, q):
 
 @cached_function
 def find_relative_threshold(alpha, q, m, nenu, nlat, nfft, kfft, beta0, beta1, dlat, avg_dlsc, sdv_dlsc):
-	lambda_2_ = lambda t: lambda_2(t, nfft, alpha, dlat, q)
+	# lambda_2_ = lambda t: lambda_2(t, nfft, alpha, dlat, q) #The `nfft` parameter should be replaced with `beta1`.
+	lambda_2_ = lambda t: lambda_2(t, beta1, alpha, dlat, q)
 	res = RR(beta1 * numerical_integral(lambda_2_, 0, 1)[0])
 	res *= RR(exp(RR(-alpha * (pi*avg_dlsc/q)**2 / (1 + 2*alpha*(pi*sdv_dlsc/q)**2))))
 	res /= RR(sqrt(1 + 2*alpha*(pi*sdv_dlsc/q)**2))
@@ -332,10 +333,10 @@ def get_reduction_cost_model(nn):
         return RC.ADPS16
 
 def cost_sample(m, beta0, beta1, N, red_cost_model):
-	rho, T, _, _ = red_cost_model.short_vectors(
+	rho, T, _, beta1 = red_cost_model.short_vectors(
 		beta = beta0, N=N, d=m, sieve_dim=beta1
 	)
-	return rho, T
+	return rho, T, beta1
     
 C_mul = RR(1024)
 C_add = RR(160)

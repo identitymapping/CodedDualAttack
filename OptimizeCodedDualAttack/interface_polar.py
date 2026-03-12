@@ -77,8 +77,8 @@ def polar_str_repr(C_polar):
 	import os, sys
 	import tempfile
 	libc = ctypes.CDLL(None)
-	c_stdout = ctypes.c_void_p.in_dll(libc, '__stdoutp') #osx
-	#c_stdout = ctypes.c_void_p.in_dll(libc, 'stdout') #linux
+	#c_stdout = ctypes.c_void_p.in_dll(libc, '__stdoutp') #osx
+	c_stdout = ctypes.c_void_p.in_dll(libc, 'stdout') #linux
 	@contextmanager
 	def stdout_redirector(stream):
 		# The original fd stdout points to. Usually 1 on POSIX systems.

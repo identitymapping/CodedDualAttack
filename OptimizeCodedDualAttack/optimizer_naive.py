@@ -26,7 +26,7 @@ def optimize_init(alpha, q, n, red_cost_model, target_proba_false_candidate_glob
 def optimize_from(alpha, q, n, red_cost_model, target_proba_false_candidate_global, target_proba_senu, L_param, option_dlsc, lock_nfft_kfft):
 	if(not lock_nfft_kfft):
 		around_m = 1
-		around_nenu = 1
+		around_nenu = 6 # Align this parameter with rot_optimizer_naive.py (value = 6 in rot_optimizer_naive.py)
 		around_nfft = 1
 		around_kfft = 1
 	else:
@@ -48,9 +48,9 @@ def optimize_from(alpha, q, n, red_cost_model, target_proba_false_candidate_glob
 					if (Comp < min_Comp):
 						min_Comp = Comp
 						L_param_best = [m,nenu,nfft,kfft,beta0,beta1]
-						print("BETTER ------------------------------- ")
-						print(float(min_Comp))
-						print(L_param_best)
+						# print("BETTER ------------------------------- ")
+						# print(float(min_Comp))
+						# print(L_param_best)
 
 	return L_param_best, min_Comp
 
@@ -113,6 +113,9 @@ def optimize_(res_starting_point, target_proba_false_candidate_global, target_pr
 				print(nn)
 				print(L_best)
 				print(Comp_best)
+				[m,nenu,nfft,kfft,beta0,beta1] = L_best
+				print(f"need decoding behaviour for {[nfft, kfft]=}")
+				print()
 				return [scheme, nn, L_best, Comp_best]
 
 def optimize(res_starting_point, nb_iteration_optimiser, nb_core, option_dlsc):

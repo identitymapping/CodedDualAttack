@@ -193,10 +193,11 @@ def complexity(alpha, _q, _m, _nenu, _nlat, _nfft, _kfft, red_cost_model, target
 		dlsc = RR(avg_dlsc * (nfft+1)/nfft)
 	p0 = RR(compute_p0(alpha))
 	R_min = max(RR(1), RR(2 * (p0**(-nenu))))
-	R_max = max(R_min, 2^100)
-	eta_max = min(compute_eta_max(alpha, _nenu, _nfft),compute_eta(R_max, alpha, _nenu, _nfft))
-	if eta_max < target_proba_senu:
-		return math.inf, 0, 0
+	R_max = 2 ** 100
+	# R_max = max(R_min, 2^100)
+	# eta_max = min(compute_eta_max(alpha, _nenu, _nfft),compute_eta(R_max, alpha, _nenu, _nfft))
+	# if eta_max < target_proba_senu:
+	# 	return math.inf, 0, 0
 
 	'''
 	R = R_min
