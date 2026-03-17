@@ -1,15 +1,3 @@
-This branch `eprint-2026-279` is a copy of a fork of this repository (URL: https://github.com/TabOg/CodedDualAttack).
+# run make to build the polar code decoder
 
-We modified the code at **OptimizeCodedDualAttack/rot_utilitaries.py Line 124**:
-Original code:
-`lambda_2_ = lambda t: lambda_2(t, nfft, alpha, dlat, q)`
-Modified code:
-`lambda_2_ = lambda t: lambda_2(t, beta1, alpha, dlat, q)`
-
-We re-ran `optimizer_naive.py` and `rot_optimizer_naive.py`; the execution results are saved to `out_optimizer_naive.txt` and `out_rot_optimizer_naive.txt` respectively.
-
----
-
-# Build and Run Instructions
-1. Run `make` to build the polar code decoder.
-2. Run `optimizer_naive.py` to find the optimal parameters of the coded dual lattice attack.
+# run optimizer_naive.py to find the optimal parameters of the coded dual lattice attack
