@@ -4,7 +4,7 @@ import math
 
 #Optimizer
 
-def optimize_init(alpha, q, n, red_cost_model, target_proba_false_candidate_global, target_proba_senu, option_dlsc):
+def optimize_init(alpha, q, n, red_cost_model, target_proba_false_candidate_global, target_proba_senu, option_dlsc, mlwe=True):
 	L_param_best = [0,0,0,0,0,0]
 	min_Comp = math.inf
 	m = n
@@ -13,17 +13,17 @@ def optimize_init(alpha, q, n, red_cost_model, target_proba_false_candidate_glob
 			for nfft in range(10, 101, 10):
 				nlat = n - nfft - nenu
 				for kfft in range(1,nfft//2+2,5):
-					Comp, beta1, beta0 = complexity(alpha, q, m, nenu, nlat, nfft, kfft, red_cost_model, target_proba_false_candidate_global, target_proba_senu, option_dlsc = option_dlsc)
+					Comp, beta0, beta1 = complexity(alpha, q, m, nenu, nlat, nfft, kfft, red_cost_model, target_proba_false_candidate_global, target_proba_senu, option_dlsc = option_dlsc, mlwe=mlwe)
 					if (Comp < min_Comp):
 						min_Comp = Comp
 						L_param_best = [m,nenu,nfft,kfft,beta0,beta1]
-						print("BETTER ------------------------------- ")
-						print(float(min_Comp))
-						print(L_param_best)
+						# print("BETTER ------------------------------- ")
+						# print(float(min_Comp))
+						# print(L_param_best)
 		
 	return L_param_best, min_Comp
 
-def optimize_from(alpha, q, n, red_cost_model, target_proba_false_candidate_global, target_proba_senu, L_param, option_dlsc, lock_nfft_kfft):
+def optimize_from(alpha, q, n, red_cost_model, target_proba_false_candidate_global, target_proba_senu, L_param, option_dlsc, lock_nfft_kfft, mlwe):
 	if(not lock_nfft_kfft):
 		around_m = 1
 		around_nenu = 1
@@ -38,34 +38,34 @@ def optimize_from(alpha, q, n, red_cost_model, target_proba_false_candidate_glob
 	L_param_best = L_param.copy()
 	[m_best,nenu_best,nfft_best,kfft_best,beta0_best,beta1_best] = L_param
 	nlat_best = n - nenu_best - nfft_best
-	min_Comp, beta0, beta1 = complexity(alpha, q, m_best, nenu_best, nlat_best, nfft_best, kfft_best, red_cost_model, target_proba_false_candidate_global, target_proba_senu, option_dlsc = option_dlsc)
+	min_Comp, beta0, beta1 = complexity(alpha, q, m_best, nenu_best, nlat_best, nfft_best, kfft_best, red_cost_model, target_proba_false_candidate_global, target_proba_senu, option_dlsc=option_dlsc,mlwe=mlwe)
 	for m in range(max(m_best - around_m,1) , min(m_best + around_m,n) + 1):
 		for nenu in range(max(nenu_best - around_nenu,1),min(nenu_best + around_nenu,100)  +1):
 			for nfft in range(max(nfft_best - around_nfft,1),min(nfft_best + around_nfft,200)+1):
 				nlat = n - nfft - nenu
 				for kfft in range(max(kfft_best - around_kfft,1),min(kfft_best + around_kfft,nfft - 1)+1):
-					Comp, beta0, beta1 = complexity(alpha, q, m, nenu, nlat, nfft, kfft, red_cost_model, target_proba_false_candidate_global, target_proba_senu, option_dlsc = option_dlsc)
+					Comp, beta0, beta1 = complexity(alpha, q, m, nenu, nlat, nfft, kfft, red_cost_model, target_proba_false_candidate_global, target_proba_senu, option_dlsc = option_dlsc, mlwe=mlwe)
 					if (Comp < min_Comp):
 						min_Comp = Comp
 						L_param_best = [m,nenu,nfft,kfft,beta0,beta1]
-						print("BETTER ------------------------------- ")
-						print(float(min_Comp))
-						print(L_param_best)
+						# print("BETTER ------------------------------- ")
+						# print(float(min_Comp))
+						# print(L_param_best)
 
 	return L_param_best, min_Comp
 
-def optimize_1(alpha, q, n, red_cost_model, target_proba_false_candidate_global, target_proba_senu, L_param, nb_It, option_dlsc, lock_nfft_kfft): 
-	#if not lock_nfft_kfft:
-	#	L_param, Comp = optimize_init(alpha, q, n, red_cost_model, target_proba_false_candidate_global, target_proba_senu, option_dlsc)
+def optimize_1(alpha, q, n, red_cost_model, target_proba_false_candidate_global, target_proba_senu, L_param, nb_It, option_dlsc, lock_nfft_kfft, mlwe):
+	# if not lock_nfft_kfft:
+	# 	L_param, Comp = optimize_init(alpha, q, n, red_cost_model, target_proba_false_candidate_global, target_proba_senu, option_dlsc, mlwe=mlwe)
 
 	[m_best,nenu_best,nfft_best,kfft_best,beta0_best,beta1_best] = L_param
 	nlat_best = n - nenu_best - nfft_best
-	Comp, beta0_best, beta1_best = complexity(alpha, q, m_best, nenu_best, nlat_best, nfft_best, kfft_best, red_cost_model, target_proba_false_candidate_global, target_proba_senu, option_dlsc)
+	Comp, beta0_best, beta1_best = complexity(alpha, q, m_best, nenu_best, nlat_best, nfft_best, kfft_best, red_cost_model, target_proba_false_candidate_global, target_proba_senu, option_dlsc, mlwe=mlwe)
 	sComp_base = Comp
 	
 	for i in range(nb_It):
 		save_comp = Comp
-		L_param, Comp = optimize_from(alpha, q, n, red_cost_model, target_proba_false_candidate_global, target_proba_senu, L_param, option_dlsc, lock_nfft_kfft)
+		L_param, Comp = optimize_from(alpha, q, n, red_cost_model, target_proba_false_candidate_global, target_proba_senu, L_param, option_dlsc, lock_nfft_kfft, mlwe)
 		if(Comp == save_comp):
 			if(Comp == sComp_base):
 				print("END NOT BETTER ------------------------------ " + str(n))
@@ -73,7 +73,7 @@ def optimize_1(alpha, q, n, red_cost_model, target_proba_false_candidate_global,
 	return L_param, Comp
 
 
-def optimize_(res_starting_point, target_proba_false_candidate_global, target_proba_senu, nb_iteration_optimiser, option_dlsc,ii):
+def optimize_(res_starting_point, target_proba_false_candidate_global, target_proba_senu, nb_iteration_optimiser, option_dlsc,ii, mlwe):
 	i = 0
 	for scheme in res_starting_point:
 		for nn in res_starting_point[scheme]:
@@ -108,38 +108,61 @@ def optimize_(res_starting_point, target_proba_false_candidate_global, target_pr
 					lock_nfft_kfft = True
 				else:
 					lock_nfft_kfft = False
-				L_best,Comp_best = optimize_1(alpha, q, n, red_cost_model, target_proba_false_candidate_global, target_proba_senu, L_param, nb_It, option_dlsc = option_dlsc_, lock_nfft_kfft = lock_nfft_kfft)
+				L_best,Comp_best = optimize_1(alpha, q, n, red_cost_model, target_proba_false_candidate_global, target_proba_senu, L_param, nb_It, option_dlsc = option_dlsc_, lock_nfft_kfft = lock_nfft_kfft, mlwe=mlwe)
 				print(scheme)
 				print(nn)
 				print(L_best)
 				print(Comp_best)
+				print()
 				return [scheme, nn, L_best, Comp_best]
 
-def optimize(res_starting_point, nb_iteration_optimiser, nb_core, option_dlsc):
+def optimize(res_starting_point, nb_iteration_optimiser, nb_core, option_dlsc, target_proba_senu, mlwe):
 	target_proba_false_candidate_global = RR(0.05)
-	target_proba_senu = RR(0.6)
 	q = 3329
-	#option_dlsc = {'ratio_GV': 1.1}
-	#short_description += ", with " + str(nb_iteration_optimiser) + " optimizer iteration"
 	nbS, new_comp = count_s(res_starting_point)
-	func_ = partial(optimize_, res_starting_point,target_proba_false_candidate_global,target_proba_senu, nb_iteration_optimiser,option_dlsc)
-	pool = multiprocessing.Pool(processes = nb_core)
-	LL = pool.map(func_, range(nbS))
-	pool.close()
-	pool.join()
-	for [scheme, nn, L_best, Comp_best] in LL:
-		[m,nenu,nfft,kfft,beta0,beta1] = L_best
-		red_cost_model = get_reduction_cost_model(nn)
-		cst = scheme.normalize()
-		n = cst.n
-		nlat = n - nenu - nfft
-		if(n == 512):
-			alpha = 3
-		else:
-			alpha = 2
-		option_dlsc_ = option_dlsc[scheme][nn]
-		d_comp = complexity(alpha, q, m, nenu, nlat, nfft, kfft, red_cost_model, target_proba_false_candidate_global, target_proba_senu, option_dlsc_, ret_dict = True)
-		new_comp[scheme][nn] = d_comp
+	func_ = partial(
+		optimize_,
+		res_starting_point,
+		target_proba_false_candidate_global,
+		target_proba_senu,
+		nb_iteration_optimiser,
+		option_dlsc,
+		mlwe=mlwe,
+	)
+	context = multiprocessing.get_context("fork")
+	pool = context.Pool(processes=min(nb_core, nbS))
+
+	try:
+		for [scheme, nn, L_best, Comp_best] in pool.imap_unordered(func_, range(nbS), chunksize=1):
+			[m, nenu, nfft, kfft, beta0, beta1] = L_best
+			red_cost_model = get_reduction_cost_model(nn)
+			cst = scheme.normalize()
+			n = cst.n
+			nlat = n - nenu - nfft
+			if n == 512:
+				alpha = 3
+			else:
+				alpha = 2
+			option_dlsc_ = option_dlsc[scheme][nn]
+			d_comp = complexity(
+				alpha, q, m, nenu, nlat, nfft, kfft,
+				red_cost_model,
+				target_proba_false_candidate_global,
+				target_proba_senu,
+				option_dlsc_,
+				ret_dict=True,
+				mlwe=mlwe,
+			)
+			new_comp[scheme][nn] = d_comp
+
+	except BaseException:
+		pool.terminate()
+		pool.join()
+		raise
+	else:
+		pool.close()
+		pool.join()
+
 	return new_comp
 
 
@@ -157,7 +180,7 @@ def optimize_from_starting_parameter_without_experimental_polar_code(filename_st
 		for nn in res_starting_point[scheme]:
 			option_dlsc[scheme][nn] = {'experimental_Clsc':False, 'ratio_GV':RR(1.0)}
 
-	res = optimize(res_starting_point, nb_iteration_optimiser, nb_core = 7, option_dlsc = option_dlsc)
+	res = optimize(res_starting_point, nb_iteration_optimiser, nb_core = 9, option_dlsc = option_dlsc, target_proba_senu=target_proba_senu, mlwe=mlwe)
 	with open(filename_output, 'wb') as f:
 		pickle.dump(res, f)
 
@@ -184,15 +207,25 @@ def generate_data_polar_code_(res, ii):
 				return [scheme, nn , d]
 
 
-def generate_data_polar_code(filename, output):
+def generate_data_polar_code(filename, output, nb_core = 7):
 	with open(filename, 'rb') as handle:
 		res = pickle.load(handle)
 	nbS, resB = count_s(res)
 	func_ = partial(generate_data_polar_code_, res)
-	pool = multiprocessing.Pool(processes = 7)
-	LL = pool.map(func_, range(nbS))
-	pool.close()
-	pool.join()
+
+	context = multiprocessing.get_context("spawn")
+	pool = context.Pool(processes=min(nb_core, nbS))
+
+	try:
+		LL = pool.map(func_, range(nbS), chunksize=1)
+	except BaseException:
+		pool.terminate()
+		pool.join()
+		raise
+	else:
+		pool.close()
+		pool.join()
+
 	for [scheme, nn , d] in LL:
 		resB[scheme][nn] = d
 	resF = {}
@@ -201,7 +234,7 @@ def generate_data_polar_code(filename, output):
 	with open(output, 'wb') as f:
 		pickle.dump(resF, f)
 
-def optimize_from_starting_parameter_with_experimental_polar_code(filename_starting_point,filename_output):
+def optimize_from_starting_parameter_with_experimental_polar_code(filename_starting_point,filename_output, target_proba_senu, mlwe):
 	with open(filename_starting_point, 'rb') as handle:
 		res_starting_point= pickle.load(handle)
 	
@@ -218,19 +251,23 @@ def optimize_from_starting_parameter_with_experimental_polar_code(filename_start
 			cc = Clsc[scheme][nn].copy()
 			option_dlsc[scheme][nn] = {'experimental_Clsc':True, 'code':cc}
 
-	res = optimize(res, nb_iteration_optimiser, nb_core = 7, option_dlsc = option_dlsc)
+	res = optimize(res, nb_iteration_optimiser, nb_core = 7, option_dlsc = option_dlsc, target_proba_senu=target_proba_senu, mlwe=mlwe)
 
 	with open(filename_output, 'wb') as f:
 		pickle.dump(res, f)
 
 if __name__ == "__main__": 
 	# Supposed to run in a night maximum
-	filename_starting_point = 'start_parameter.pkl'
-	filename_output1 = 'optimized_withoutExperimentalPolar.pkl'
-	filename_output2 = 'optimized_withoutExperimentalPolar_StatisticsPolar.pkl'
-	filename_output3 = 'optimized_withExperimentalPolar.pkl'
+	target_prob = 0.3
+	target_proba_senu = RR(2 * target_prob)
+	mlwe = False
+	mlwe_string = 'mlwe' if mlwe else 'lwe'
+	filename_starting_point = f'{mlwe_string}_start_parameter.pkl'
+	filename_output1 = f'{mlwe_string}_optimized_withoutExperimentalPolar.pkl'
+	filename_output2 = f'{mlwe_string}_optimized_withoutExperimentalPolar_StatisticsPolar.pkl'
+	filename_output3 = f'{mlwe_string}_optimized_withExperimentalPolar.pkl'
 
 
-	optimize_from_starting_parameter_without_experimental_polar_code(filename_starting_point,filename_output1)
+	optimize_from_starting_parameter_without_experimental_polar_code(filename_starting_point, filename_output1, target_proba_senu, mlwe)
 	generate_data_polar_code(filename_output1,filename_output2)
-	optimize_from_starting_parameter_with_experimental_polar_code(filename_output2, filename_output3)
+	optimize_from_starting_parameter_with_experimental_polar_code(filename_output2, filename_output3, target_proba_senu, mlwe)

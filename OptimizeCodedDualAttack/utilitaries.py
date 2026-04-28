@@ -1,4 +1,4 @@
-from sage.all import real, sqrt, log, exp, tanh, coth, e, pi, RR, ZZ, sigma, erf, gamma, bessel_J, RealField, binomial, erfinv, floor, ceil, round, find_local_maximum, find_local_minimum, numerical_integral
+from sage.all import real, sqrt, log, exp, tanh, coth, e, pi, RR, ZZ, sigma, erf, gamma, bessel_J, RealField, binomial, erfinv, floor, ceil, round, find_local_maximum, find_local_minimum, numerical_integral, gamma, gamma_inc, cached_function
 from estimator.estimator.cost import Cost
 from estimator.estimator.lwe_parameters import LWEParameters
 from estimator.estimator.lwe import Estimate
@@ -67,7 +67,19 @@ def get_reduction_cost_model(nn):
     elif nn == "C0":
         return RC.ADPS16
     else:
-        raise Error("unknown cost model '{}'".format(nn))
+        raise ValueError("unknown cost model '{}'".format(nn))
+
+def get_reduction_cost_model_name(model):
+    if model == RC.ADPS16:
+        return "C0"
+
+    if isinstance(model, RC.MATZOV.__class__):
+        if model.nn == "list_decoding-classical":
+            return "CC"
+        elif model.nn == "list_decoding-naive_classical":
+            return "CN"
+
+    raise ValueError("Unknown reduction cost model: '{}'".format({model}))
 
 #cost_sample(m + nlat, beta0, beta1, N, red_cost_model)
 def cost_sample(m, beta0, beta1, N, red_cost_model):
@@ -104,14 +116,18 @@ def survival_normal(T,N):
     res = RR(RR(RR(1) - RR(erf(RR(RR(T)/RR(sqrt(RR(N)))))))/RR(2))
     return RR(log(res, 2))
     
+def weighted_threshold_integral(alpha, q, beta, d):
+	s = RR(beta) / 2
+	c = RR(alpha * (pi*d/q) ** 2)
+	return RR(s * c ** (-s) * (gamma(s) - gamma_inc(s, c)))
 
 def find_relative_threshold_tmp(alpha, q, m, nenu, nlat, nfft, kfft, beta0, beta1, dlat, dlsc):
-	res = RR(beta1 * numerical_integral(lambda t: RR(RR(t**RR(beta1 - 1)) * RR(exp(RR(-alpha*(pi*t*dlat/q)**2)))), 0, 1)[0])
-	res *= RR(nfft * numerical_integral(lambda t: RR(RR(t**RR(nfft - 1)) * RR(exp(RR(-alpha*(pi*t*dlsc/q)**2)))), 0, 1)[0])
+	res = weighted_threshold_integral(alpha, q, beta1, dlat)
+	res *= weighted_threshold_integral(alpha, q, nfft, dlsc)
 	return res
 
 def find_relative_threshold(alpha, q, m, nenu, nlat, nfft, kfft, beta0, beta1, dlat, avg_dlsc, sdv_dlsc):
-	res = RR(beta1 * numerical_integral(lambda t: RR(RR(t**RR(beta1 - 1)) * RR(exp(RR(-alpha*(pi*t*dlat/q)**2)))), 0, 1)[0])
+	res = weighted_threshold_integral(alpha, q, beta1, dlat)
 	res *= RR(exp(RR(-alpha * (pi*avg_dlsc/q)**2 / (1 + 2*alpha*(pi*sdv_dlsc/q)**2))))
 	res /= RR(sqrt(1 + 2*alpha*(pi*sdv_dlsc/q)**2))
 	return res
@@ -128,7 +144,7 @@ def count_s(res):
 	return i, d
 
 
-
+@cached_function
 def compute_eta_max(alpha, nenu, nfft):
 	res = RR(1.0)
 	p0 = RR(compute_p0(alpha))
@@ -172,7 +188,83 @@ def compute_eta(R, alpha, nenu, nfft):
 		prob_binom /= RR(1.0 - p0)
 	return RR(res)
 
-def complexity(alpha, _q, _m, _nenu, _nlat, _nfft, _kfft, red_cost_model, target_proba_false_candidate_global, target_proba_senu, option_dlsc = {'ratio_GV':RR(1.0)}, ret_dict = False):
+def compute_eta_rot(R, alpha, nenu, n):
+	res = RR(1.0)
+	p0 = RR(compute_p0(alpha))
+	
+	binom_binom = RR(1.0)
+	prob_binom = RR(RR(1.0 - p0)**RR(n))
+	for t in range(nenu):
+		res -= RR(binom_binom * prob_binom)
+		binom_binom *= RR(n - t)
+		binom_binom /= RR(t + 1.0)
+		prob_binom *= p0
+		prob_binom /= RR(1.0 - p0)
+
+	binom_bis = RR(1.0/binomial(n, nenu))
+	for t in range(nenu, n + 1):
+		#res -= RR( RR( RR( RR(1.0) - RR(binom_bis) )**RR(R) ) * binom_binom * prob_binom)
+		res -= RR(RR(exp(RR(R)*RR(log(RR(1.0) - RR(binom_bis))) )) * binom_binom * prob_binom)
+		
+		binom_bis *= RR(t + 1.0)
+		binom_bis /= RR(t + 1.0 - nenu)
+		binom_bis = min(RR(1.0), binom_bis)
+		binom_binom *= RR(n - t)
+		binom_binom /= RR(t + 1.0)
+		prob_binom *= p0
+		prob_binom /= RR(1.0 - p0)
+	return RR(res)
+
+@cached_function
+def find_min_R_lwe(alpha, nenu, nfft, target_proba_senu):
+    compute_eta_ = lambda R: compute_eta(R, alpha, nenu, nfft)
+    eta_max = compute_eta_max(alpha, nenu, nfft)
+
+    R_min = 1
+    R_max = max(R_min, 2 ** 100)
+    eta_max = min(eta_max, compute_eta_(R_max))
+    if eta_max < target_proba_senu:
+        return math.inf, 0
+
+    eta_min = compute_eta_(R_min)
+    if eta_min < target_proba_senu:
+        while R_min < R_max:
+            R = (R_min + R_max) // 2
+            if compute_eta_(R) >= target_proba_senu:
+                R_max = R
+            else:
+                R_min = R + 1
+
+    R = R_min
+    eta = compute_eta_(R)
+    return R, eta
+
+
+@cached_function
+def find_min_R_mlwe(alpha, nenu, n, target_proba_senu):
+    compute_eta_ = lambda R: compute_eta_rot(R, alpha, nenu, n)
+    eta_max = compute_eta_max(alpha, nenu, n - nenu)
+
+    R_min = 1
+    R_max = max(R_min, 2 ** 100)
+    eta_max = min(eta_max, compute_eta_(R_max))
+    if eta_max < target_proba_senu:
+        return math.inf, 0
+
+    eta_min = compute_eta_(R_min)
+    if eta_min < target_proba_senu:
+        while R_min < R_max:
+            R = (R_min + R_max) // 2
+            if compute_eta_(R) >= target_proba_senu:
+                R_max = R
+            else:
+                R_min = R + 1
+
+    R = R_min
+    eta = compute_eta_(R)
+    return R, eta
+
+def complexity(alpha, _q, _m, _nenu, _nlat, _nfft, _kfft, red_cost_model, target_proba_false_candidate_global, target_proba_senu, option_dlsc = {'ratio_GV':RR(1.0)}, ret_dict = False, mlwe=False):
 	d_comp = {}
 	q = RR(_q)
 	m = RR(_m)
@@ -191,31 +283,15 @@ def complexity(alpha, _q, _m, _nenu, _nlat, _nfft, _kfft, red_cost_model, target
 		avg_dlsc = RR(option_dlsc['ratio_GV'])*RR( ((RR(q)**(RR(1)-RR(RR(kfft)/RR(nfft)))) * (gamma(nfft/RR(2) + RR(1))**(RR(1)/RR(nfft))) / RR(sqrt(RR(pi)))))
 		sdv_dlsc = None
 		dlsc = RR(avg_dlsc * (nfft+1)/nfft)
-	p0 = RR(compute_p0(alpha))
-	R_min = max(RR(1), RR(2 * (p0**(-nenu))))
-	R_max = max(R_min, 2^100)
-	eta_max = min(compute_eta_max(alpha, _nenu, _nfft),compute_eta(R_max, alpha, _nenu, _nfft))
-	if eta_max < target_proba_senu:
+
+	if mlwe:
+		R, eta = find_min_R_mlwe(alpha, _nenu, _nenu + _nlat + _nfft, target_proba_senu)
+	else:
+		R, eta = find_min_R_lwe(alpha, _nenu, _nfft, target_proba_senu)
+
+	if eta < target_proba_senu:
 		return math.inf, 0, 0
 
-	'''
-	R = R_min
-	eta = compute_eta(R, alpha, _nenu, _nfft)
-	while eta < target_proba_senu:
-		R *= 1.1
-		eta = compute_eta(R, alpha, _nenu, _nfft)
-	'''
-	R = RR((R_min + R_max)/2)
-	while R_max - R_min > 1:
-		eta = compute_eta(R, alpha, _nenu, _nfft)
-		if eta < target_proba_senu:
-			R_min = R
-		else:
-			R_max = R
-		R = RR((R_min + R_max)/2)
-	R = R_max
-	eta = compute_eta(R, alpha, _nenu, _nfft)
-	
 	target_Pwrong = RR(target_proba_false_candidate_global/(R*(q**kfft)))
 	
 	beta0_inf = 200
